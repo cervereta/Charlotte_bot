@@ -2,7 +2,7 @@
 
 ¡Bienvenid@ a **Charlotte Bot**! Un bot de Telegram personalizable que permite a cualquier usuario configurar palabras clave y respuestas (texto o imágenes) en un chat privado, para luego usarlo en grupos de Telegram. Charlotte responde automáticamente a las palabras clave que configures, haciendo que tus grupos sean más interactivos y divertidos.
 
-![logo](rubia6.jpg)
+![logo](rubia7.jpg)
 
 ## Características
 - **Configuración en privado**: Define palabras clave y sus respuestas (texto o imágenes) en un chat privado con el bot.
