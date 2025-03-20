@@ -179,9 +179,20 @@ bot.catch((err, ctx) => {
     ctx.reply('Ocurrió un error, por favor intenta más tarde.');
 });
 
-bot.launch()
-    .then(() => console.log('El bot se ha iniciado correctamente.'))
-    .catch((err) => console.error('Error al iniciar el bot:', err));
+// Importar 'http' para crear un servidor básico
+const http = require('http');
+
+// Configurar el puerto desde la variable de entorno de Heroku (o 5000 por defecto)
+const PORT = process.env.PORT || 5000;
+
+// Configurar el webhook con la URL de tu app en Heroku
+const HEROKU_URL = process.env.HEROKU_URL || `https://charlotte-bot.herokuapp.com`; // Cambia esto por el nombre de tu app en Heroku
+bot.telegram.setWebhook(`${HEROKU_URL}/bot${process.env.BOT_TOKEN}`);
+
+// Crear un servidor básico para Heroku
+http.createServer(bot.webhookCallback(`/bot${process.env.BOT_TOKEN}`)).listen(PORT, () => {
+    console.log(`Bot corriendo en el puerto ${PORT}`);
+});
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
