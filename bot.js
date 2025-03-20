@@ -186,7 +186,7 @@ const http = require('http');
 const PORT = process.env.PORT || 5000;
 
 // Configurar el webhook con la URL de tu app en Heroku
-const HEROKU_URL = process.env.HEROKU_URL || `https://github.com/cervereta/Charlotte_bot`; // Cambia esto por el nombre de tu app en Heroku
+const HEROKU_URL = process.env.HEROKU_URL || `https://charlotte-bot-b07eafb7460c.herokuapp.com/`; // Cambia esto por el nombre de tu app en Heroku
 bot.telegram.setWebhook(`${HEROKU_URL}/bot${process.env.BOT_TOKEN}`);
 
 // Crear un servidor básico para Heroku
