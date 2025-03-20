@@ -157,17 +157,19 @@ bot.on('text', async (ctx) => {
     if (ctx.chat.type === 'private' && userStates[userId]) {
       if (userStates[userId] === 'awaiting_keyword') {
         const keyword = ctx.message.text.toLowerCase();
-        userStates[userId] = 'awaiting_response';
         // Asegúrate de que configs[userId] exista
         configs[userId] = configs[userId] || {};
         configs[userId][keyword] = { type: null, content: null };
+        // Guardar inmediatamente en la base de datos
+        await saveConfig(userId, configs[userId]);
+        userStates[userId] = { state: 'awaiting_response', keyword: keyword };
         ctx.reply(`Palabra clave "${keyword}" recibida. Ahora, envía la respuesta (texto o imagen).`);
-      } else if (userStates[userId] === 'awaiting_response') {
+      } else if (userStates[userId]?.state === 'awaiting_response') {
+        const keyword = userStates[userId].keyword;
         // Asegúrate de que configs[userId] exista
         configs[userId] = configs[userId] || {};
-        const keyword = Object.keys(configs[userId]).find(k => !configs[userId][k].type);
-        if (!keyword) {
-          ctx.reply('Error: No se encontró la palabra clave pendiente. Intenta de nuevo con /config.');
+        if (!configs[userId][keyword]) {
+          ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
           userStates[userId] = null;
           return;
         }
@@ -190,7 +192,7 @@ bot.on('text', async (ctx) => {
       const userConfig = configs[userId] || {};
       const username = ctx.from.first_name || ctx.from.username || 'Usuario';
       for (const [keyword, response] of Object.entries(userConfig)) {
-        if (messageText.includes(keyword)) {
+        if (messageText.includes(keyword) && response.type) { // Solo responder si tiene tipo definido
           const mention = `[${username}](tg://user?id=${userId})`;
           if (response.type === 'text') {
             ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
@@ -213,7 +215,7 @@ bot.on('text', async (ctx) => {
       const userConfig = configs[configOwnerId] || {};
       const username = ctx.from.first_name || ctx.from.username || 'Usuario';
       for (const [keyword, response] of Object.entries(userConfig)) {
-        if (messageText.includes(keyword)) {
+        if (messageText.includes(keyword) && response.type) { // Solo responder si tiene tipo definido
           const mention = `[${username}](tg://user?id=${userId})`;
           if (response.type === 'text') {
             ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
