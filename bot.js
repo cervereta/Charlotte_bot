@@ -18,7 +18,7 @@ async function initializeDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS configs (
         user_id VARCHAR(255) PRIMARY KEY,
-        keywords JSONB
+        config JSONB
       );
     `);
     await client.query(`
@@ -118,11 +118,6 @@ bot.command('config', async (ctx) => {
   );
 });
 
-bot.on('text', async (ctx) => {
-  console.log('Mensaje recibido:', ctx.message.text, 'de:', ctx.from.id);
-  // Resto del código...
-});
-
 bot.action('add_keyword', async (ctx) => {
   if (ctx.chat.type !== 'private') return;
   const userId = ctx.from.id.toString();
@@ -170,6 +165,7 @@ bot.on('new_chat_members', async (ctx) => {
 });
 
 bot.on('text', async (ctx) => {
+    console.log('Mensaje recibido:', ctx.message.text, 'de:', ctx.from.id); // Mantener el console log
     const userId = ctx.from.id.toString();
     const chatId = ctx.chat.id.toString();
     const configs = await getConfigs();
@@ -250,7 +246,7 @@ bot.on('text', async (ctx) => {
 
 bot.on('photo', async (ctx) => {
   const userId = ctx.from.id.toString();
-  if (ctx.chat.type !== 'private' || userStates[userId] !== 'awaiting_response') return;
+  if (ctx.chat.type !== 'private' || userStates[userId]?.state !== 'awaiting_response') return;
 
   const configs = await getConfigs();
   const keyword = Object.keys(configs[userId]).find(k => !configs[userId][k].type);
