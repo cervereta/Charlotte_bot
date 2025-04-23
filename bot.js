@@ -79,8 +79,8 @@ async function saveGroupConfig(chatId, configOwnerId) {
   );
 }
 
-// Resto del código ajustado a funciones asíncronas
 bot.start(async (ctx) => {
+  console.log('Comando /start recibido de:', ctx.from.id);
   if (ctx.chat.type === 'private') {
     ctx.reply('Bienvenid@ a Charlotte. Usa /config para configurar palabras clave en este chat privado. Luego, añádeme a un grupo.');
   } else {
@@ -89,6 +89,7 @@ bot.start(async (ctx) => {
 });
 
 bot.command('config', async (ctx) => {
+  console.log('Comando /config recibido de:', ctx.from.id);
   if (ctx.chat.type !== 'private') {
     return ctx.reply('La configuración solo se puede hacer en mi chat privado. Habla conmigo directamente.');
   }
@@ -100,6 +101,11 @@ bot.command('config', async (ctx) => {
       [Markup.button.callback('Eliminar palabra clave', 'delete_keyword')]
     ])
   );
+});
+
+bot.on('text', async (ctx) => {
+  console.log('Mensaje recibido:', ctx.message.text, 'de:', ctx.from.id);
+  // Resto del código...
 });
 
 bot.action('add_keyword', async (ctx) => {
