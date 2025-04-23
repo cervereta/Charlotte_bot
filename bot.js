@@ -165,84 +165,100 @@ bot.on('new_chat_members', async (ctx) => {
 });
 
 bot.on('text', async (ctx) => {
-    console.log('Mensaje recibido:', ctx.message.text, 'de:', ctx.from.id); // Mantener el console log
-    const userId = ctx.from.id.toString();
-    const chatId = ctx.chat.id.toString();
-    const configs = await getConfigs();
-    const groupConfigs = await getGroupConfigs();
-  
-    if (ctx.chat.type === 'private' && userStates[userId]) {
-      if (userStates[userId] === 'awaiting_keyword') {
-        const keyword = ctx.message.text.toLowerCase();
-        // Asegúrate de que configs[userId] exista
-        configs[userId] = configs[userId] || {};
-        configs[userId][keyword] = { type: null, content: null };
-        // Guardar inmediatamente en la base de datos
+  console.log('Mensaje recibido:', ctx.message.text, 'de:', ctx.from.id);
+  const userId = ctx.from.id.toString();
+  const chatId = ctx.chat.id.toString();
+  const configs = await getConfigs();
+  const groupConfigs = await getGroupConfigs();
+
+  if (ctx.chat.type === 'private' && userStates[userId]) {
+    if (userStates[userId] === 'awaiting_keyword') {
+      const keyword = ctx.message.text.toLowerCase();
+      configs[userId] = configs[userId] || {};
+      configs[userId][keyword] = { type: null, content: null };
+      try {
         await saveConfig(userId, configs[userId]);
         userStates[userId] = { state: 'awaiting_response', keyword: keyword };
         ctx.reply(`Palabra clave "${keyword}" recibida. Ahora, envía la respuesta (texto o imagen).`);
-      } else if (userStates[userId]?.state === 'awaiting_response') {
-        const keyword = userStates[userId].keyword;
-        // Asegúrate de que configs[userId] exista
-        configs[userId] = configs[userId] || {};
-        if (!configs[userId][keyword]) {
-          ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
-          userStates[userId] = null;
-          return;
-        }
+      } catch (e) {
+        console.error('Error al guardar palabra clave:', e.message);
+        ctx.reply('Error al guardar la palabra clave. Por favor, intenta de nuevo más tarde.');
+        userStates[userId] = null;
+        return;
+      }
+    } else if (userStates[userId]?.state === 'awaiting_response') {
+      const keyword = userStates[userId].keyword;
+      configs[userId] = configs[userId] || {};
+      if (!configs[userId][keyword]) {
+        ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
+        userStates[userId] = null;
+        return;
+      }
+      try {
         configs[userId][keyword] = { type: 'text', content: ctx.message.text };
         await saveConfig(userId, configs[userId]);
         userStates[userId] = null;
         ctx.reply(`Palabra clave "${keyword}" configurada. Usa /config o añádeme a un Grupo.`);
-      } else if (userStates[userId] === 'awaiting_keyword_to_delete') {
-        const keyword = ctx.message.text.toLowerCase();
-        await deleteConfigKeyword(userId, keyword);
-        ctx.reply(`Palabra clave "${keyword}" eliminada con éxito.`);
+      } catch (e) {
+        console.error('Error al guardar respuesta:', e.message);
+        ctx.reply('Error al guardar la respuesta. Por favor, intenta de nuevo más tarde.');
         userStates[userId] = null;
-      }
-      return;
-    }
-  
-    // Resto del manejo de texto en privado y grupos
-    if (ctx.chat.type === 'private') {
-      const messageText = ctx.message.text.toLowerCase();
-      const userConfig = configs[userId] || {};
-      const username = ctx.from.first_name || ctx.from.username || 'Usuario';
-      for (const [keyword, response] of Object.entries(userConfig)) {
-        if (messageText.includes(keyword) && response.type) { // Solo responder si tiene tipo definido
-          const mention = `[${username}](tg://user?id=${userId})`;
-          if (response.type === 'text') {
-            ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
-          } else if (response.type === 'photo') {
-            ctx.replyWithPhoto(response.content, { caption: `${mention}`, parse_mode: 'Markdown' });
-          }
-        }
-      }
-      return;
-    }
-  
-    if (ctx.chat.type === 'group' || ctx.chat.type === 'supergroup') {
-      const configOwnerId = groupConfigs[chatId];
-      if (!configOwnerId) {
-        console.log(`No hay configuración para el grupo ${chatId}`);
         return;
       }
-  
-      const messageText = ctx.message.text.toLowerCase();
-      const userConfig = configs[configOwnerId] || {};
-      const username = ctx.from.first_name || ctx.from.username || 'Usuario';
-      for (const [keyword, response] of Object.entries(userConfig)) {
-        if (messageText.includes(keyword) && response.type) { // Solo responder si tiene tipo definido
-          const mention = `[${username}](tg://user?id=${userId})`;
-          if (response.type === 'text') {
-            ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
-          } else if (response.type === 'photo') {
-            ctx.replyWithPhoto(response.content, { caption: `${mention}`, parse_mode: 'Markdown' });
-          }
+    } else if (userStates[userId] === 'awaiting_keyword_to_delete') {
+      const keyword = ctx.message.text.toLowerCase();
+      try {
+        await deleteConfigKeyword(userId, keyword);
+        ctx.reply(`Palabra clave "${keyword}" eliminada con éxito.`);
+      } catch (e) {
+        console.error('Error al eliminar palabra clave:', e.message);
+        ctx.reply('Error al eliminar la palabra clave. Por favor, intenta de nuevo más tarde.');
+      }
+      userStates[userId] = null;
+    }
+    return;
+  }
+
+  // Resto del código sin cambios
+  if (ctx.chat.type === 'private') {
+    const messageText = ctx.message.text.toLowerCase();
+    const userConfig = configs[userId] || {};
+    const username = ctx.from.first_name || ctx.from.username || 'Usuario';
+    for (const [keyword, response] of Object.entries(userConfig)) {
+      if (messageText.includes(keyword) && response.type) {
+        const mention = `[${username}](tg://user?id=${userId})`;
+        if (response.type === 'text') {
+          ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
+        } else if (response.type === 'photo') {
+          ctx.replyWithPhoto(response.content, { caption: `${mention}`, parse_mode: 'Markdown' });
         }
       }
     }
-  });
+    return;
+  }
+
+  if (ctx.chat.type === 'group' || ctx.chat.type === 'supergroup') {
+    const configOwnerId = groupConfigs[chatId];
+    if (!configOwnerId) {
+      console.log(`No hay configuración para el grupo ${chatId}`);
+      return;
+    }
+
+    const messageText = ctx.message.text.toLowerCase();
+    const userConfig = configs[configOwnerId] || {};
+    const username = ctx.from.first_name || ctx.from.username || 'Usuario';
+    for (const [keyword, response] of Object.entries(userConfig)) {
+      if (messageText.includes(keyword) && response.type) {
+        const mention = `[${username}](tg://user?id=${userId})`;
+        if (response.type === 'text') {
+          ctx.reply(`${mention}, ${response.content}`, { parse_mode: 'Markdown' });
+        } else if (response.type === 'photo') {
+          ctx.replyWithPhoto(response.content, { caption: `${mention}`, parse_mode: 'Markdown' });
+        }
+      }
+    }
+  }
+});
 
   bot.on('photo', async (ctx) => {
     const userId = ctx.from.id.toString();
