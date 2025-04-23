@@ -58,11 +58,12 @@ async function getConfigs() {
 
 async function saveConfig(userId, config) {
   try {
-    const serializedConfig = JSON.stringify(config); // Asegurar que se serialice correctamente
+    const serializedConfig = JSON.stringify(config);
     await pool.query(
       'INSERT INTO configs (user_id, config) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET config = $2',
       [userId, serializedConfig]
     );
+    console.log(`Configuración guardada para el usuario ${userId}:`, serializedConfig);
   } catch (e) {
     console.error('Error saving config for user', userId, ':', e.message);
     throw e;
@@ -178,6 +179,7 @@ bot.on('text', async (ctx) => {
       configs[userId][keyword] = { type: null, content: null };
       try {
         await saveConfig(userId, configs[userId]);
+        console.log(`Palabra clave "${keyword}" guardada para usuario ${userId}`);
         userStates[userId] = { state: 'awaiting_response', keyword: keyword };
         ctx.reply(`Palabra clave "${keyword}" recibida. Ahora, envía la respuesta (texto o imagen).`);
       } catch (e) {
@@ -188,15 +190,13 @@ bot.on('text', async (ctx) => {
       }
     } else if (userStates[userId]?.state === 'awaiting_response') {
       const keyword = userStates[userId].keyword;
+      console.log(`Procesando respuesta para la palabra clave "${keyword}" del usuario ${userId}`);
       configs[userId] = configs[userId] || {};
-      if (!configs[userId][keyword]) {
-        ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
-        userStates[userId] = null;
-        return;
-      }
       try {
+        // No verificar configs[userId][keyword], ya que usamos userStates
         configs[userId][keyword] = { type: 'text', content: ctx.message.text };
         await saveConfig(userId, configs[userId]);
+        console.log(`Respuesta "${ctx.message.text}" guardada para la palabra clave "${keyword}"`);
         userStates[userId] = null;
         ctx.reply(`Palabra clave "${keyword}" configurada. Usa /config o añádeme a un Grupo.`);
       } catch (e) {
@@ -219,7 +219,6 @@ bot.on('text', async (ctx) => {
     return;
   }
 
-  // Resto del código sin cambios
   if (ctx.chat.type === 'private') {
     const messageText = ctx.message.text.toLowerCase();
     const userConfig = configs[userId] || {};
@@ -260,22 +259,27 @@ bot.on('text', async (ctx) => {
   }
 });
 
-  bot.on('photo', async (ctx) => {
-    const userId = ctx.from.id.toString();
-    if (ctx.chat.type !== 'private' || userStates[userId]?.state !== 'awaiting_response') return;
-  
-    const configs = await getConfigs();
-    const keyword = userStates[userId].keyword; // Usar keyword desde userStates
-    if (!configs[userId] || !configs[userId][keyword]) {
-      ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
-      userStates[userId] = null;
-      return;
-    }
+bot.on('photo', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  if (ctx.chat.type !== 'private' || userStates[userId]?.state !== 'awaiting_response') return;
+
+  const configs = await getConfigs();
+  const keyword = userStates[userId].keyword;
+  console.log(`Procesando imagen para la palabra clave "${keyword}" del usuario ${userId}`);
+  configs[userId] = configs[userId] || {};
+  try {
     configs[userId][keyword] = { type: 'photo', content: ctx.message.photo[ctx.message.photo.length - 1].file_id };
     await saveConfig(userId, configs[userId]);
+    console.log(`Imagen guardada para la palabra clave "${keyword}"`);
     userStates[userId] = null;
     ctx.reply(`Palabra clave "${keyword}" configurada con una imagen. Usa /config o añádeme a un Grupo.`);
-  });
+  } catch (e) {
+    console.error('Error al guardar imagen:', e.message);
+    ctx.reply('Error al guardar la imagen. Por favor, intenta de nuevo más tarde.');
+    userStates[userId] = null;
+    return;
+  }
+});
 
 bot.catch((err, ctx) => {
   console.error(`Error en el bot:`, err);
