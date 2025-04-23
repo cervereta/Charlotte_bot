@@ -244,17 +244,22 @@ bot.on('text', async (ctx) => {
     }
   });
 
-bot.on('photo', async (ctx) => {
-  const userId = ctx.from.id.toString();
-  if (ctx.chat.type !== 'private' || userStates[userId]?.state !== 'awaiting_response') return;
-
-  const configs = await getConfigs();
-  const keyword = Object.keys(configs[userId]).find(k => !configs[userId][k].type);
-  configs[userId][keyword] = { type: 'photo', content: ctx.message.photo[ctx.message.photo.length - 1].file_id };
-  await saveConfig(userId, configs[userId]);
-  userStates[userId] = null;
-  ctx.reply(`Palabra clave "${keyword}" configurada con una imagen. Usa /config o añádeme a un Grupo.`);
-});
+  bot.on('photo', async (ctx) => {
+    const userId = ctx.from.id.toString();
+    if (ctx.chat.type !== 'private' || userStates[userId]?.state !== 'awaiting_response') return;
+  
+    const configs = await getConfigs();
+    const keyword = userStates[userId].keyword; // Usar keyword desde userStates
+    if (!configs[userId] || !configs[userId][keyword]) {
+      ctx.reply('Error: La palabra clave no está registrada. Intenta de nuevo con /config.');
+      userStates[userId] = null;
+      return;
+    }
+    configs[userId][keyword] = { type: 'photo', content: ctx.message.photo[ctx.message.photo.length - 1].file_id };
+    await saveConfig(userId, configs[userId]);
+    userStates[userId] = null;
+    ctx.reply(`Palabra clave "${keyword}" configurada con una imagen. Usa /config o añádeme a un Grupo.`);
+  });
 
 bot.catch((err, ctx) => {
   console.error(`Error en el bot:`, err);
@@ -263,7 +268,7 @@ bot.catch((err, ctx) => {
 
 const http = require('http');
 const PORT = process.env.PORT || 5000;
-const HEROKU_URL = process.env.HEROKU_URL || `https://charlotte-bot.herokuapp.com`;
+const HEROKU_URL = process.env.HEROKU_URL || `https://charlotte-bot-b07eafb7460c.herokuapp.com`;
 bot.telegram.setWebhook(`${HEROKU_URL}/bot${process.env.BOT_TOKEN}`);
 http.createServer(bot.webhookCallback(`/bot${process.env.BOT_TOKEN}`)).listen(PORT, () => {
   console.log(`Bot corriendo en el puerto ${PORT}`);
