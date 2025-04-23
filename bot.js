@@ -39,19 +39,34 @@ initializeDatabase();
 
 // Funciones para manejar configs
 async function getConfigs() {
-  const result = await pool.query('SELECT * FROM configs');
   const configs = {};
-  result.rows.forEach(row => {
-    configs[row.user_id] = JSON.parse(row.keywords);
-  });
+  try {
+    const res = await pool.query('SELECT user_id, config FROM configs');
+    res.rows.forEach(row => {
+      try {
+        configs[row.user_id] = JSON.parse(row.config);
+      } catch (e) {
+        console.error(`Error parsing config for user ${row.user_id}:`, e.message);
+        configs[row.user_id] = {}; // Usar un objeto vacío como fallback
+      }
+    });
+  } catch (e) {
+    console.error('Error fetching configs:', e.message);
+  }
   return configs;
 }
 
-async function saveConfig(userId, keywords) {
-  await pool.query(
-    'INSERT INTO configs (user_id, keywords) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET keywords = $2',
-    [userId, JSON.stringify(keywords)]
-  );
+async function saveConfig(userId, config) {
+  try {
+    const serializedConfig = JSON.stringify(config); // Asegurar que se serialice correctamente
+    await pool.query(
+      'INSERT INTO configs (user_id, config) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET config = $2',
+      [userId, serializedConfig]
+    );
+  } catch (e) {
+    console.error('Error saving config for user', userId, ':', e.message);
+    throw e;
+  }
 }
 
 async function deleteConfigKeyword(userId, keyword) {
