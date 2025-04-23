@@ -42,28 +42,34 @@ async function getConfigs() {
   const configs = {};
   try {
     const res = await pool.query('SELECT user_id, config FROM configs');
+    console.log(`Resultado de SELECT en getConfigs: ${res.rows.length} filas encontradas`);
     res.rows.forEach(row => {
+      console.log(`Fila cruda: user_id=${row.user_id}, config=${row.config}`);
       try {
-        configs[row.user_id] = JSON.parse(row.config);
+        // Asegurar que user_id sea string
+        const userId = row.user_id.toString();
+        configs[userId] = JSON.parse(row.config);
+        console.log(`Configuración parseada para usuario ${userId}:`, configs[userId]);
       } catch (e) {
         console.error(`Error parsing config for user ${row.user_id}:`, e.message);
-        configs[row.user_id] = {}; // Usar un objeto vacío como fallback
+        configs[row.user_id.toString()] = {};
       }
     });
   } catch (e) {
     console.error('Error fetching configs:', e.message);
   }
+  console.log('Configuraciones retornadas por getConfigs:', JSON.stringify(configs, null, 2));
   return configs;
 }
 
 async function saveConfig(userId, config) {
   try {
     const serializedConfig = JSON.stringify(config);
-    await pool.query(
-      'INSERT INTO configs (user_id, config) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET config = $2',
+    const res = await pool.query(
+      'INSERT INTO configs (user_id, config) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET config = $2 RETURNING *',
       [userId, serializedConfig]
     );
-    console.log(`Configuración guardada para el usuario ${userId}:`, serializedConfig);
+    console.log(`Configuración guardada para el usuario ${userId}:`, res.rows[0]);
   } catch (e) {
     console.error('Error saving config for user', userId, ':', e.message);
     throw e;
