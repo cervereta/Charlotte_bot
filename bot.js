@@ -44,14 +44,15 @@ async function getConfigs() {
     const res = await pool.query('SELECT user_id, config FROM configs');
     console.log(`Resultado de SELECT en getConfigs: ${res.rows.length} filas encontradas`);
     res.rows.forEach(row => {
-      console.log(`Fila cruda: user_id=${row.user_id}, config=${row.config}`);
+      console.log(`Fila cruda: user_id=${row.user_id}, config=`, row.config);
       try {
         // Asegurar que user_id sea string
         const userId = row.user_id.toString();
-        configs[userId] = JSON.parse(row.config);
-        console.log(`Configuración parseada para usuario ${userId}:`, configs[userId]);
+        // No parsear, usar row.config directamente (es un objeto)
+        configs[userId] = row.config || {};
+        console.log(`Configuración para usuario ${userId}:`, configs[userId]);
       } catch (e) {
-        console.error(`Error parsing config for user ${row.user_id}:`, e.message);
+        console.error(`Error procesando config para usuario ${row.user_id}:`, e.message);
         configs[row.user_id.toString()] = {};
       }
     });
